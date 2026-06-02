@@ -9,11 +9,9 @@ import {
 // Provide a minimal typing for Vite's import.meta.env to avoid TS errors when
 // this project isn't using the Vite types globally.
 declare global {
-    interface ImportMeta {
-        readonly env: {
-            VITE_API_BASE_URL?: string;
-            // add other env vars here as needed
-        };
+    interface ImportMetaEnv {
+        VITE_API_BASE_URL?: string;
+        // add other env vars here as needed
     }
 }
 
