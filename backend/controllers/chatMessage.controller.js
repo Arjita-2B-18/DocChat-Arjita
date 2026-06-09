@@ -387,6 +387,29 @@ const getChatMessages = asyncHandler(async (req, res) => {
 const getChatMessageSources = asyncHandler(async (req, res) => {
     const { messageId } = req.params;
 
+    // Step 1: Fetch the message AND its parent chat in one query
+    // We need chat.userId to verify the caller owns this message
+    const message = await prisma.chatMessage.findUnique({
+        where: { id: messageId },
+        include: {
+            chat: {
+                select: { userId: true },
+            },
+        },
+    });
+
+    // Step 2: Message doesn't exist → 404
+    if (!message) {
+        throw new ApiError(404, "Message not found.");
+    }
+
+    // Step 3: Message exists but belongs to a different user → also 404
+    // Returning 404 (not 403) so we don't leak that the resource exists
+    if (message.chat.userId !== req.user.id) {
+        throw new ApiError(404, "Message not found.");
+    }
+
+    // Step 4: Ownership confirmed — now safely fetch the sources
     const messageSources = await prisma.chatMessageSource.findMany({
         where: { chatMessageId: messageId },
         orderBy: { createdAt: "asc" },
@@ -402,7 +425,9 @@ const getChatMessageSources = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, { messageSources }, "Chat message sources retrieved successfully."));
+        .json(
+            new ApiResponse(200, { messageSources }, "Chat message sources retrieved successfully."),
+        );
 });
 
 const getSharedChatMessages = asyncHandler(async (req, res) => {
